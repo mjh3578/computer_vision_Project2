@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include<utility>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
@@ -12,6 +13,8 @@
 
 using namespace cv;
 using namespace std;
+
+
 int cCount = 0;
 int snd = 0;
 vector<Point> Pvec;
@@ -19,6 +22,10 @@ vector<Mat> Mvec;
 float histo[33] = { 0, };
 float histo2[33] = { 0, };
 int Pcount = 0;
+int maxX = -1;
+int minX = 65535;
+int maxY = -1;
+int minY = 65535;
 
 float intensity(int r, int g, int b) {
 	return  0.2125 * r + 0.7152 * g + 0.0722 * b;
@@ -51,109 +58,23 @@ void CallBackFunc(int event, int x, int y, int flags, void* userdata)
 			//imshow("new1", mag);
 			//imshow("new2", angle);
 			if (snd == 0) {
-				for (int i = 0; i < 15; i++) {
-					for (int j = 0; j < 15; j++) {
-						//dx
-						float dx;
-						
-						uchar b = im.at<Vec3b>(y - 7 + i + 1, x - 7 + j)[0];
-						uchar g = im.at<Vec3b>(y - 7 + i + 1, x - 7 + j)[1];
-						uchar r = im.at<Vec3b>(y - 7 + i + 1, x - 7 + j)[2];
-						dx = intensity(r, g, b);
-
-						b = im.at<Vec3b>(y - 7 + i - 1, x - 7 + j)[0];
-						g = im.at<Vec3b>(y - 7 + i - 1, x - 7 + j)[1];
-						r = im.at<Vec3b>(y - 7 + i - 1, x - 7 + j)[2];
-						dx = dx - intensity(r, g, b);
-						//dy
-						float dy;
-						b = im.at<Vec3b>(y - 7 + i, x - 7 + j - 1)[0];
-						g = im.at<Vec3b>(y - 4 + i, x - 7 + j - 1)[1];
-						r = im.at<Vec3b>(y - 7 + i, x - 7 + j - 1)[2];
-						dy = intensity(r, g, b);
-
-						b = im.at<Vec3b>(y - 7 + i, x - 7 + j + 1)[0];
-						g = im.at<Vec3b>(y - 7 + i, x - 7 + j + 1)[1];
-						r = im.at<Vec3b>(y - 7 + i, x - 7 + j + 1)[2];
-						dy = dy - intensity(r, g, b);
-						//cout << dx << ", " << dy<<"\n";
-						float gori = atan2(dy, dx) * 57.2957951 + 180;
-						float gmag = sqrt(dx * dx + dy * dy);
-						int indx = (gori / 45);
-						
-						float binrate = (gori-indx*45)/45;
-						float binrate2 = 1 - binrate;
-
-						float bin = gmag*binrate2;
-
-						indx = indx + (8 * Pcount);
-						int indx2 = (indx + 1) % 8 + (Pcount * 8);
-						//cout << gori << ", " << gmag << "\n";
-
-	
-						histo[indx] = histo[indx] + bin;
-						bin = gmag * binrate;
-						histo[indx2] = histo[indx2] + bin;
-							
-					
-
-					}
-				}
+				Pvec.push_back(Point(x, y));
 				Pcount++;
 			
 			}
 			else if (snd == 1) {
-				for (int i = 0; i < 15; i++) {
-					for (int j = 0; j < 15; j++) {
-						//dx
-						float dx;
-
-						uchar b = im.at<Vec3b>(y - 7 + i + 1, x - 7 + j)[0];
-						uchar g = im.at<Vec3b>(y - 7 + i + 1, x - 7 + j)[1];
-						uchar r = im.at<Vec3b>(y - 7 + i + 1, x - 7 + j)[2];
-						dx = intensity(r, g, b);
-
-						b = im.at<Vec3b>(y - 7 + i - 1, x - 7 + j)[0];
-						g = im.at<Vec3b>(y - 7 + i - 1, x - 7 + j)[1];
-						r = im.at<Vec3b>(y - 7 + i - 1, x - 7 + j)[2];
-						dx = dx - intensity(r, g, b);
-						//dy
-						float dy;
-						b = im.at<Vec3b>(y - 7 + i, x - 7 + j - 1)[0];
-						g = im.at<Vec3b>(y - 4 + i, x - 7 + j - 1)[1];
-						r = im.at<Vec3b>(y - 7 + i, x - 7 + j - 1)[2];
-						dy = intensity(r, g, b);
-
-						b = im.at<Vec3b>(y - 7 + i, x - 7 + j + 1)[0];
-						g = im.at<Vec3b>(y - 7 + i, x - 7 + j + 1)[1];
-						r = im.at<Vec3b>(y - 7 + i, x - 7 + j + 1)[2];
-						dy = dy - intensity(r, g, b);
-						//cout << dx << ", " << dy<<"\n";
-						float gori = atan2(dy, dx) * 57.2957951 + 180;
-						float gmag = sqrt(dx * dx + dy * dy);
-						int indx = (gori / 45);
-
-						float binrate = (gori - indx * 45) / 45;
-						float binrate2 = 1 - binrate;
-
-						float bin = gmag * binrate2;
-
-						indx = indx + (8 * Pcount);
-						int indx2 = (indx + 1) % 8 + (Pcount * 8);
-						//cout << gori << ", " << gmag << "\n";
-
-
-						histo2[indx] = histo2[indx] + bin;
-						bin = gmag * binrate;
-						histo2[indx2] = histo2[indx2] + bin;
-
-
-					}
-				}
+				Pvec.push_back(Point(x, y));
+				if (x > maxX)
+					maxX = x;
+				if (x < minX)
+					minX = x;
+				if (y > maxY)
+					maxY = y;
+				if (y < minY)
+					minY = y;
 				Pcount++;
 			}
 
-			Pvec.push_back(Point(x, y));
 
 			//Mvec.push_back(mag);
 			//Mvec.push_back(angle);
@@ -164,12 +85,35 @@ void CallBackFunc(int event, int x, int y, int flags, void* userdata)
 	}
 	
 }
-
+float BilinearInterpolation(float q11, float q12, float q21, float q22, float x1, float x2, float y1, float y2, float x, float y)
+{
+	float x2x1, y2y1, x2x, y2y, yy1, xx1;
+	x2x1 = x2 - x1;
+	y2y1 = y2 - y1;
+	x2x = x2 - x;
+	y2y = y2 - y;
+	yy1 = y - y1;
+	xx1 = x - x1;
+	return 1.0 / (x2x1 * y2y1) * (
+		q11 * x2x * y2y +
+		q21 * xx1 * y2y +
+		q12 * x2x * yy1 +
+		q22 * xx1 * yy1
+		);
+}
 void displayType(cv::Mat& img, const std::string type, std::vector<cv::Point>& contour)
 {
 	cv::Rect rect = cv::boundingRect(contour);
 	cv::Point top_left(rect.x, rect.y);
 	cv::putText(img, type, top_left, 0, 0.5, CV_RGB(0, 0, 0));
+}
+
+int ccw(pair<int, int> a, pair<int, int> b, pair<int, int> c) {
+	int op = a.first * b.second + b.first * c.second + c.first * a.second;
+	op -= (a.second * b.first + b.second * c.first + c.second * a.first);
+	if (op > 0)return 1;
+	else if (op == 0)return 0;
+	else return -1;
 }
 
 double computeCosine(cv::Point pointA, cv::Point pointB, cv::Point anglePoint)
@@ -182,6 +126,11 @@ double computeCosine(cv::Point pointA, cv::Point pointB, cv::Point anglePoint)
 
 int main()
 {
+	
+
+	
+
+	//////////////////////////////
 	string f_name;
 	cout << "enter file name.. (1st.jpg)" << "\n";
 
@@ -190,8 +139,11 @@ int main()
 	//cin << f_name;
 	cv::Mat imgori = cv::imread(f_name);
 	Mat img;
+	
 	GaussianBlur(imgori, imgori, Size(5, 5), 0.0);
 	resize(imgori, img, Size(600, 800));
+	Mat rimg;
+	img.copyTo(rimg);
 
 	if (img.empty())
 		return EXIT_FAILURE;
@@ -206,7 +158,9 @@ int main()
 	cv::waitKey(500);
 	destroyWindow("image");
 	
-	cout << "enter 2nd file name.. (2nd.jpg)" << "\n";
+
+
+	cout << "enter 2nd file name.. (target.jpg)" << "\n";
 	cCount = 0;
 	snd = 1;
 	Pcount = 0;
@@ -214,8 +168,12 @@ int main()
 	getline(cin, f_name, '\n');
 	cv::Mat imgori2 = cv::imread(f_name);
 	Mat img2;
+	
 	GaussianBlur(imgori2, imgori2, Size(5, 5), 0.0);
 	resize(imgori2, img2, Size(600, 800));
+	Mat rimg2;
+	img2.copyTo(rimg2);
+
 	if (img2.empty())
 		return EXIT_FAILURE;
 	cv::imshow("image", img2);
@@ -226,75 +184,77 @@ int main()
 	destroyWindow("image");
 	cv::waitKey(500);
 	//snd = 2;
-	cout << "=========================\n";
+	vector<Point2f> corners(4);
+	corners[0] = Pvec[0];
+	corners[1] = Pvec[1];
+	corners[2] = Pvec[2];
+	corners[3] = Pvec[3];
+
+	Size warpSize(600, 800);
+
+	Mat warpImg(warpSize, rimg.type());
+
+
+
+	vector<Point2f> warpCorners(4);
+	warpCorners[0] = Pvec[4];
+	warpCorners[1] = Pvec[5];
+	warpCorners[2] = Pvec[6];
+	warpCorners[3] = Pvec[7];
+
+	Mat trans = getPerspectiveTransform(corners, warpCorners);
+	warpPerspective(rimg, warpImg, trans, warpSize);
+	imshow("save",warpImg);
+	//cout << maxX << ", " << minX << ", " << maxY << ", " << minY;
+
+	//vector<Point> line1 = linePoints(Pvec[4].x, Pvec[4].y, Pvec[5].x, Pvec[5].y);
+	//vector<Point> line2 = linePoints(Pvec[5].x, Pvec[5].y, Pvec[6].x, Pvec[6].y);
+	//vector<Point> line3 = linePoints(Pvec[6].x, Pvec[6].y, Pvec[7].x, Pvec[7].y);
+	//vector<Point> line4 = linePoints(Pvec[7].x, Pvec[7].y, Pvec[4].x, Pvec[4].y);
+	cout << "-=-=-=-=-\n";
 	
-	for (int i = 0; i < 4; i++) {
-		cout << "1st.jpg => Point_" << i + 1 << " Histogram\n";
-		cout << "[0~1/4/*pi]: " << histo[i * 8] << "  [1/4*pi~1/2*pi]: " << histo[i * 8 + 1];
-		cout << "  [1/2*pi~3/4*pi]: " << histo[i * 8 + 2] << "  [3/4*pi~1*pi]: " << histo[i * 8 + 3] << "\n";
-		cout << "[1*pi~5/4*pi]: " << histo[i * 8 + 4] << "  [5/4*pi~3/2*pi]: " << histo[i * 8 + 5];
-		cout << "  [3/2*pi~7/4*pi]: " << histo[i * 8 + 6] << "  [7/4*pi~2*pi]: " << histo[i * 8 + 7] << "\n";
-		cout << "--------------------------\n";
-	}
-	cout << "=========================\n";
-	for (int i = 0; i < 4; i++) {
-		cout << "2nd.jpg => Point_" << i + 1 << " Histogram\n";
-		cout << "[0~1/4/*pi]: " << histo2[i * 8] << "  [1/4*pi~1/2*pi]: " << histo2[i * 8 + 1];
-		cout << "  [1/2*pi~3/4*pi]: " << histo2[i * 8 + 2] << "  [3/4*pi~1*pi]: " << histo2[i * 8 + 3] << "\n";
-		cout << "[1*pi~5/4*pi]: " << histo2[i * 8 + 4] << "  [5/4*pi~3/2*pi]: " << histo2[i * 8 + 5];
-		cout << "  [3/2*pi~7/4*pi]: " << histo2[i * 8 + 6] << "  [7/4*pi~2*pi]: " << histo2[i * 8 + 7] << "\n";
-		cout << "--------------------------\n";
-	}
+	//img_result2.at<uchar>(y, x) = p;
+	//pair<int, int> p1 (Pvec[4].x,Pvec[4].y);
+	//pair<int, int> p2(Pvec[5].x, Pvec[5].y);
+	//pair<int, int> p3(Pvec[6].x, Pvec[6].y);
+	//pair<int, int> p4(Pvec[7].x, Pvec[7].y);
 
-	cout << "\n======거리계산======\n";
-	float smallsum = 65535;
-	int rot = 0;
-	int whtP = 0;
-	vector<int> matched;
-	for (int u = 0; u < 4; u++) {//점 4개 비교
-		
-		for (int i = 0; i < 4; i++) {//2nd점 4개 비교
 
-			for (int j = 0; j < 8; j++) {//각도
-				float distsum = 0;
-				for (int k = 0; k < 8; k++) {
-					int histo2idx = (k + j) % 8 + (i * 8);
-					int Point_1st = k + u * 8;
-					distsum = distsum + abs(histo[Point_1st] - histo2[histo2idx]);
+	for (int i = minX; i <= maxX; i++) {
+		for (int j = minY; j <= maxY; j++) {
+			int cc = 0;
+			pair<int, int> a;
+			a = make_pair(i, j);
+			pair<int, int> b = make_pair(maxX, j);
+			for (int p = 0; p < 3; p++) {
+
+				pair<int, int> c = make_pair(Pvec[4 + p].x, Pvec[4 + p].y);
+				pair<int, int> d = make_pair(Pvec[5 + p % 3].x, Pvec[5 + p % 3].y);
+				int ab = ccw(a, b, c) * ccw(a, b, d);
+				int cd = ccw(c, d, a) * ccw(c, d, b);
+				if (ab == 0 && cd == 0) {
+					if (a > b)swap(a, b);
+					if (c > d)swap(c, d);
+					if (c <= b && a <= d) {
+						rimg2.at<Vec3b>(j, i)[0] = warpImg.at<Vec3b>(j, i)[0];
+						rimg2.at<Vec3b>(j, i)[1] = warpImg.at<Vec3b>(j, i)[1];
+						rimg2.at<Vec3b>(j, i)[2] = warpImg.at<Vec3b>(j, i)[2];
+					}
+						
 				}
-				if (smallsum > distsum) {
-					smallsum = distsum;
-					rot = j;
-					whtP = i;
+				if (ab <= 0 && cd <= 0) {
+					rimg2.at<Vec3b>(j, i)[0] = warpImg.at<Vec3b>(j, i)[0];
+					rimg2.at<Vec3b>(j, i)[1] = warpImg.at<Vec3b>(j, i)[1];
+					rimg2.at<Vec3b>(j, i)[2] = warpImg.at<Vec3b>(j, i)[2];
 				}
 			}
+			
 		}
-		matched.push_back(whtP + 1);
-		smallsum = 65535;
-		rot = 0;
-		whtP = 0;
 	}
-	for (int i = 0; i < 4; i++) {
-		cout << "1st.jpg의 "<<i+1<<"번째 점은\n";
-		cout << " 2st.jpg의 " << matched[i] << "번째 점과 같음\n";
-	}
-	Mat concatimg;
-	hconcat(img, img2, concatimg);
-	for (int i = 0; i < 4; i++) {
-		Pvec[4 + i].x += 599;
-	}
-	for (int i = 0; i < 4; i++) {
-		line(concatimg, Pvec[i], Pvec[3 + matched[i]], Scalar(0, 254, 0), 5);
-	}
-	//line(concatimg, Pvec[0], Pvec[3 + matched[0]], Scalar(0, 254, 0),5);
+	imshow("resut", rimg2);
+	cout << "end\n";
 
-
-	cv::imshow("image", concatimg);
-
-	cv::waitKey(0);
-
-
-	//cv::imshow("image", img);
-	//cv::waitKey(0);
+	waitKey(0);
+	
 	return EXIT_SUCCESS;
 }

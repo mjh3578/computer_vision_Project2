@@ -107,7 +107,32 @@ void displayType(cv::Mat& img, const std::string type, std::vector<cv::Point>& c
 	cv::Point top_left(rect.x, rect.y);
 	cv::putText(img, type, top_left, 0, 0.5, CV_RGB(0, 0, 0));
 }
+vector<Point> linePoints(int x0, int y0, int x1, int y1)
+{
+	vector<Point> pointsOfLine;
 
+	int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+	int dy = abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+	int err = (dx > dy ? dx : -dy) / 2, e2;
+
+	for (;;)
+	{
+		pointsOfLine.push_back(Point(x0, y0));
+		if (x0 == x1 && y0 == y1) break;
+		e2 = err;
+		if (e2 > -dx)
+		{
+			err -= dy;
+			x0 += sx;
+		}
+		if (e2 < dy)
+		{
+			err += dx;
+			y0 += sy;
+		}
+	}
+	return pointsOfLine;
+}
 int ccw(pair<int, int> a, pair<int, int> b, pair<int, int> c) {
 	int op = a.first * b.second + b.first * c.second + c.first * a.second;
 	op -= (a.second * b.first + b.second * c.first + c.second * a.first);
@@ -115,7 +140,20 @@ int ccw(pair<int, int> a, pair<int, int> b, pair<int, int> c) {
 	else if (op == 0)return 0;
 	else return -1;
 }
-
+int isIntersect(pair<pair<int, int>, pair<int, int>> x, pair<pair<int, int>, pair<int, int>> y) {
+	pair<int, int> a = x.first;
+	pair<int, int> b = x.second;
+	pair<int, int> c = y.first;
+	pair<int, int> d = y.second;
+	int ab = ccw(a, b, c) * ccw(a, b, d);
+	int cd = ccw(c, d, a) * ccw(c, d, b);
+	if (ab == 0 && cd == 0) {
+		if (a > b)swap(a, b);
+		if (c > d)swap(c, d);
+		return c <= b && a <= d;
+	}
+	return ab <= 0 && cd <= 0;
+}
 double computeCosine(cv::Point pointA, cv::Point pointB, cv::Point anglePoint)
 {
 	std::pair<double, double> v1(pointA.x - anglePoint.x, pointA.y - anglePoint.y);
@@ -184,6 +222,7 @@ int main()
 	destroyWindow("image");
 	cv::waitKey(500);
 	//snd = 2;
+
 	vector<Point2f> corners(4);
 	corners[0] = Pvec[0];
 	corners[1] = Pvec[1];
@@ -194,18 +233,58 @@ int main()
 
 	Mat warpImg(warpSize, rimg.type());
 
-
-
 	vector<Point2f> warpCorners(4);
 	warpCorners[0] = Pvec[4];
 	warpCorners[1] = Pvec[5];
 	warpCorners[2] = Pvec[6];
 	warpCorners[3] = Pvec[7];
+	//Mat trans = getPerspectiveTransform(corners, warpCorners);
+	int x1 = Pvec[0].x;
+	int y1 = Pvec[0].y;
+	int x2 = Pvec[1].x;
+	int y2 = Pvec[1].y;
+	int x3 = Pvec[2].x;
+	int y3 = Pvec[2].y;
+	int x4 = Pvec[3].x;
+	int y4 = Pvec[3].y;
+	int xt1 = Pvec[4].x;
+	int yt1 = Pvec[4].y;
+	int xt2 = Pvec[5].x;
+	int yt2 = Pvec[5].y;
+	int xt3 = Pvec[6].x;
+	int yt3 = Pvec[6].y;
+	int xt4 = Pvec[7].x;
+	int yt4 = Pvec[7].y;
+	Mat H = (Mat_<double>(8, 9) <<
+		-x1, -y1, -1, 0, 0, 0, x1 * xt1, y1 * xt1, xt1,
+		0, 0, 0, -x1, -y1, -1, x1 * yt1, y1 * yt1, yt1,
+		-x2, -y2, -1, 0, 0, 0, x2 * xt2, y2 * xt2, xt2,
+		0, 0, 0, -x2, -y2, -1, x2 * yt2, y2 * yt2, yt2,
+		-x3, -y3, -1, 0, 0, 0, x3 * xt3, y3 * xt3, xt3,
+		0, 0, 0, -x3, -y3, -1, x3 * yt3, y3 * yt3, yt3,
+		-x4, -y4, -1, 0, 0, 0, x4 * xt4, y4 * xt4, xt4,
+		0, 0, 0, -x4, -y4, -1, x4 * yt4, y4 * yt4, yt4);
+	Mat U, S, VT;
+	SVDecomp(H, U, S, VT, SVD::FULL_UV);
+	transpose(VT, VT);
+	Mat transeform(Size(3, 3), CV_64FC1);
+	cout << "check\n";
+	int lrow = 0;
+	int lcols = VT.cols - 1;
+	cout << "check\n\n";
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			transeform.at<double>(i, j) = VT.at<double>(lrow, lcols);
+			cout << "check\n";
+			lrow++;
+		}
+	}
+	double dw = transeform.at<double>(2, 2);
+	transeform = transeform / dw;
 
-	Mat trans = getPerspectiveTransform(corners, warpCorners);
-	warpPerspective(rimg, warpImg, trans, warpSize);
-	imshow("save",warpImg);
-	//cout << maxX << ", " << minX << ", " << maxY << ", " << minY;
+	// Warping
+	warpPerspective(rimg, warpImg, transeform, warpSize);
+	
 
 	//vector<Point> line1 = linePoints(Pvec[4].x, Pvec[4].y, Pvec[5].x, Pvec[5].y);
 	//vector<Point> line2 = linePoints(Pvec[5].x, Pvec[5].y, Pvec[6].x, Pvec[6].y);
@@ -214,10 +293,11 @@ int main()
 	cout << "-=-=-=-=-\n";
 	
 	//img_result2.at<uchar>(y, x) = p;
-	//pair<int, int> p1 (Pvec[4].x,Pvec[4].y);
-	//pair<int, int> p2(Pvec[5].x, Pvec[5].y);
-	//pair<int, int> p3(Pvec[6].x, Pvec[6].y);
-	//pair<int, int> p4(Pvec[7].x, Pvec[7].y);
+	pair<int, int> p1 (Pvec[4].x,Pvec[4].y);
+	pair<int, int> p2(Pvec[5].x, Pvec[5].y);
+	pair<int, int> p3(Pvec[6].x, Pvec[6].y);
+	pair<int, int> p4(Pvec[7].x, Pvec[7].y);
+	//pair <pair, pair> line1 ();
 
 
 	for (int i = minX; i <= maxX; i++) {
@@ -226,26 +306,73 @@ int main()
 			pair<int, int> a;
 			a = make_pair(i, j);
 			pair<int, int> b = make_pair(maxX, j);
-			for (int p = 0; p < 3; p++) {
+			pair<int, int> b2 = make_pair(minX, j);
+			for (int p = 0; p < 4; p++) {
 
 				pair<int, int> c = make_pair(Pvec[4 + p].x, Pvec[4 + p].y);
 				pair<int, int> d = make_pair(Pvec[5 + p % 3].x, Pvec[5 + p % 3].y);
+				if (p == 3) {
+					d = make_pair(Pvec[4].x, Pvec[4].y);
+				}
 				int ab = ccw(a, b, c) * ccw(a, b, d);
 				int cd = ccw(c, d, a) * ccw(c, d, b);
 				if (ab == 0 && cd == 0) {
 					if (a > b)swap(a, b);
 					if (c > d)swap(c, d);
 					if (c <= b && a <= d) {
-						rimg2.at<Vec3b>(j, i)[0] = warpImg.at<Vec3b>(j, i)[0];
-						rimg2.at<Vec3b>(j, i)[1] = warpImg.at<Vec3b>(j, i)[1];
-						rimg2.at<Vec3b>(j, i)[2] = warpImg.at<Vec3b>(j, i)[2];
+						for (int p2 = 0; p2 < 4; p2++) {
+							int ab2 = ccw(a, b2, c) * ccw(a, b2, d);
+							int cd2 = ccw(c, d, a) * ccw(c, d, b2);
+							if (ab2 == 0 && cd2 == 0) {
+								if (a > b2)swap(a, b2);
+								if (c > d)swap(c, d);
+								if (c <= b && a <= d) {
+									rimg2.at<Vec3b>(j, i)[0] = warpImg.at<Vec3b>(j, i)[0];
+									rimg2.at<Vec3b>(j, i)[1] = warpImg.at<Vec3b>(j, i)[1];
+									rimg2.at<Vec3b>(j, i)[2] = warpImg.at<Vec3b>(j, i)[2];
+								}
+							}
+							if (ab2 <= 0 && cd2 <= 0) {
+								rimg2.at<Vec3b>(j, i)[0] = warpImg.at<Vec3b>(j, i)[0];
+								rimg2.at<Vec3b>(j, i)[1] = warpImg.at<Vec3b>(j, i)[1];
+								rimg2.at<Vec3b>(j, i)[2] = warpImg.at<Vec3b>(j, i)[2];
+							}
+						}
+						
 					}
 						
 				}
 				if (ab <= 0 && cd <= 0) {
-					rimg2.at<Vec3b>(j, i)[0] = warpImg.at<Vec3b>(j, i)[0];
-					rimg2.at<Vec3b>(j, i)[1] = warpImg.at<Vec3b>(j, i)[1];
-					rimg2.at<Vec3b>(j, i)[2] = warpImg.at<Vec3b>(j, i)[2];
+					pair<int, int> a;
+					a = make_pair(i, j);
+					for (int p2 = 0; p2 < 4; p2++) {
+						
+						pair<int, int> b2 = make_pair(minX, j);
+						pair<int, int> c = make_pair(Pvec[4 + p2].x, Pvec[4 + p2].y);
+						pair<int, int> d = make_pair(Pvec[5 + p2 % 3].x, Pvec[5 + p2 % 3].y);
+						if (p2 == 3) {
+							d = make_pair(Pvec[4].x, Pvec[4].y);
+						}
+
+
+						int ab2 = ccw(a, b2, c) * ccw(a, b2, d);
+						int cd2 = ccw(c, d, a) * ccw(c, d, b2);
+						if (ab2 == 0 && cd2 == 0) {
+							if (a > b2)swap(a, b2);
+							if (c > d)swap(c, d);
+							if (c <= b2 && a <= d) {
+								rimg2.at<Vec3b>(j, i)[0] = warpImg.at<Vec3b>(j, i)[0];
+								rimg2.at<Vec3b>(j, i)[1] = warpImg.at<Vec3b>(j, i)[1];
+								rimg2.at<Vec3b>(j, i)[2] = warpImg.at<Vec3b>(j, i)[2];
+							}
+						}
+						if (ab2 <= 0 && cd2 <= 0) {
+							rimg2.at<Vec3b>(j, i)[0] = warpImg.at<Vec3b>(j, i)[0];
+							rimg2.at<Vec3b>(j, i)[1] = warpImg.at<Vec3b>(j, i)[1];
+							rimg2.at<Vec3b>(j, i)[2] = warpImg.at<Vec3b>(j, i)[2];
+						}
+					}
+					
 				}
 			}
 			
@@ -255,6 +382,6 @@ int main()
 	cout << "end\n";
 
 	waitKey(0);
-	
+
 	return EXIT_SUCCESS;
 }
